@@ -1,5 +1,7 @@
 import gym
 import tensorflow as tf
+import uuid
+from datetime import datetime
 
 # Create environment
 env = gym.make("CartPole-v0")
@@ -10,11 +12,29 @@ num_episodes = 100
 learning_rate = 0.001
 num_epochs = 100
 
+EXPERIMENT_ID = f"{datetime.strftime(datetime.now(), '%Y-%m-%d-%H-%M')}-{uuid.uuid4()}"
+LOGS_PATH = f"data/models/{EXPERIMENT_ID}/logs"
+CKPT_PATH = f"data/models/{EXPERIMENT_ID}/ckpt"
+
+writer = tf.summary.create_file_writer(LOGS_PATH)
+
 # Define a policy
 policy = tf.keras.Sequential([
     tf.keras.layers.Dense(num_actions)
 ])
 
+optimizer = tf.keras.optimizers.Adam(learning_rate)
+
+ckpt = tf.train.Checkpoint(step=tf.Variable(1), optimizer=optimizer, net=policy)
+manager = tf.train.CheckpointManager(ckpt, CKPT_PATH, max_to_keep=3)
+
+ckpt.restore(manager.latest_checkpoint)
+if manager.latest_checkpoint:
+    print("Restored from {}".format(manager.latest_checkpoint))
+else:
+    print("Initializing from scratch.")
+
+global_episode_counter = 0
 for epoch in range(num_epochs):
     # Reset batch
     ep_loss = []
@@ -32,10 +52,10 @@ for epoch in range(num_epochs):
             dis_reward = tf.constant(0, dtype=tf.float32)
             obs_t = env.reset()
             # Run an episode
-            
+            global_episode_counter += 1
             while not done:
                 # Get action and log probability
-                obs_t_ = obs_t.reshape(-1,num_obs_feats)
+                obs_t_ = obs_t.reshape(-1, num_obs_feats)
                 logits = policy(obs_t_)
                 action = tf.random.categorical(logits, num_samples=1)
                 action_ = tf.reshape(action, [-1])
@@ -45,7 +65,7 @@ for epoch in range(num_epochs):
 
                 # Take action in the environment
                 obs_t1, r, done, _ = env.step(action_.numpy()[0])
-                
+
                 # Store transition
                 ep_obs_t.append(obs_t)
                 ep_a.append(action)
@@ -56,30 +76,35 @@ for epoch in range(num_epochs):
                 # Make next observation as current observation
                 obs_t = obs_t1
 
-            # If episode is complete
-            if done:
-                pow_ = tf.range(0, len(ep_obs_t), dtype=tf.float32)
-                gamma_ = tf.constant(gamma,  dtype=tf.float32)
-                ep_gamma = tf.math.pow(gamma_, pow_)
-                reward = tf.constant(ep_r, dtype=tf.float32)
-                dis_reward = tf.reduce_sum(ep_gamma * reward)
-                dis_reward_ = dis_reward * tf.ones([1, len(ep_obs_t)])
+            pow_ = tf.range(0, len(ep_obs_t), dtype=tf.float32)
+            gamma_ = tf.constant(gamma,  dtype=tf.float32)
+            ep_gamma = tf.math.pow(gamma_, pow_)
+            reward = tf.constant(ep_r, dtype=tf.float32)
+            dis_reward = tf.reduce_sum(ep_gamma * reward)
+            dis_reward_ = dis_reward * tf.ones([1, len(ep_obs_t)])
 
-                ep_log_phi_a_ = tf.reshape(tf.stack(ep_log_phi_a), (-1, len(ep_obs_t)))
+            ep_log_phi_a_ = tf.reshape(tf.stack(ep_log_phi_a), (-1, len(ep_obs_t)))
 
-                loss_ = tf.reduce_sum(ep_log_phi_a_ * dis_reward_)
+            loss_ = tf.reduce_sum(ep_log_phi_a_ * dis_reward_)
+            total_episode_reward = tf.reduce_sum(ep_r)
 
-                ep_loss.append(loss_)
-                ep_reward.append(tf.reduce_sum(ep_r))
-                
+            ep_loss.append(loss_)
+            ep_reward.append(total_episode_reward)
+
         # Calculate expected mean of loss over all episodes in a batch
         loss = tf.math.negative(tf.reduce_mean(ep_loss))
 
+        with writer.as_default():
+            tf.summary.scalar("epoch_loss", loss, epoch)
+
     avg_reward = sum(ep_reward) / num_episodes
-    
+
+    with writer.as_default():
+        tf.summary.scalar("epoch_avg_reward", avg_reward, epoch)
+
     grads = tape.gradient(loss, policy.trainable_variables)
-    optimizer = tf.keras.optimizers.Adam(learning_rate)
     optimizer.apply_gradients(zip(grads, policy.trainable_variables))
 
-    if epoch%10 == 0:
+    if epoch % 10 == 0:
         print(f"Epoch: {epoch} Average Reward: {avg_reward} Loss: {loss}")
+        manager.save() 
