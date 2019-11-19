@@ -10,11 +10,11 @@ $$
 \theta_{t+1} = \theta_{t} + \alpha \nabla_{\theta}J(\pi_{\theta})
 $$
 
-![Screenshot from 2019-11-10 12-59-56](/home/shivam/Pictures/Screenshot from 2019-11-10 12-59-56.png)
+![Screenshot from 2019-11-10 12-59-56](https://i.imgur.com/xgT3jki.png)
 
 
 
-![Screenshot from 2019-11-10 13-05-25](/home/shivam/Pictures/Screenshot from 2019-11-10 13-05-25.png)
+![Screenshot from 2019-11-10 13-05-25](https://i.imgur.com/spyZE10.png)
 
 In order to estimate the expected gradient of the objective we sample a lot of trajectories and calculate the expected mean, hence the gradient of objective becomes:
 $$
