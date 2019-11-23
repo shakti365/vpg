@@ -3,16 +3,16 @@ import tensorflow as tf
 import uuid
 from datetime import datetime
 from tensorboard.plugins.hparams import api as hp
+import numpy as np
 
-tf.random.set_seed(0)
 
-HP_LEARNING_RATE = hp.HParam("learning_rate", hp.RealInterval(0.00001, 0.001))
+HP_LEARNING_RATE = hp.HParam("learning_rate", hp.RealInterval(0.001, 0.01))
 METRIC_AVG_REWARD = "highest_avg_reward"
-
 
 
 def run_vpg(hparams):
 
+    tf.random.set_seed(0)
     # Create environment
     env = gym.make("CartPole-v0")
     num_actions = 2
@@ -20,7 +20,7 @@ def run_vpg(hparams):
     gamma = 0.9
     num_episodes = 64
     learning_rate = hparams[HP_LEARNING_RATE]
-    num_epochs = 100
+    num_epochs = 500
 
     EXPERIMENT_ID = f"HP-{datetime.strftime(datetime.now(), '%Y-%m-%d-%H-%M')}-{uuid.uuid4()}"
     LOGS_PATH = f"data/models/{EXPERIMENT_ID}/logs"
@@ -140,8 +140,8 @@ def run_vpg(hparams):
                           step=1)
 
 
-for learning_rate in (HP_LEARNING_RATE.domain.min_value,
-                      HP_LEARNING_RATE.domain.max_value):
+for learning_rate in np.linspace(HP_LEARNING_RATE.domain.min_value,
+                      HP_LEARNING_RATE.domain.max_value, 5):
     hparams = {
         HP_LEARNING_RATE: learning_rate
     }
