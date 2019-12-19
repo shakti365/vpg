@@ -89,27 +89,35 @@ def run_vpg(hparams):
                     obs_t1, r, done, _ = env.step(action_.numpy()[0])
 
                     # Store transition
-                    ep_obs_t.append(obs_t)
+                    #ep_obs_t.append(obs_t)
                     ep_a.append(action)
                     ep_r.append(r)
-                    ep_obs_t1.append(obs_t1)
+                    #ep_obs_t1.append(obs_t1)
                     ep_log_phi_a.append(log_phi_a)
 
                     # Make next observation as current observation
                     obs_t = obs_t1
 
-                pow_ = tf.range(0, len(ep_obs_t), dtype=tf.float32)
-                gamma_ = tf.constant(gamma,  dtype=tf.float32)
-                ep_gamma = tf.math.pow(gamma_, pow_)
-                reward = tf.constant(ep_r, dtype=tf.float32)
-                dis_reward = tf.reduce_sum(ep_gamma * reward)
-                dis_reward_ = dis_reward * tf.ones([1, len(ep_obs_t)])
+                ep_len = len(ep_r)
+                g_ = []
+                for i in range(ep_len-1, -1, -1):
+                    zeros_ = [0] * (i)
+                    gs_ = [gamma ** j for j in reversed(range(ep_len - i))]
+                    g_.append(gs_ + zeros_)
 
-                ep_log_phi_a_ = tf.reshape(tf.stack(ep_log_phi_a), (-1, len(ep_obs_t)))
+                #pow_ = tf.range(0, len(ep_obs_t), dtype=tf.float32)
+                #gamma_ = tf.constant(gamma,  dtype=tf.float32)
+                #ep_gamma = tf.math.pow(gamma_, pow_)
+                reward = tf.constant(ep_r, dtype=tf.float32, shape=[1, ep_len])
+                #dis_reward = tf.reduce_sum(ep_gamma * reward)
+                #dis_reward_ = dis_reward * tf.ones([1, len(ep_obs_t)])
+                gamma_ = tf.constant(g_, dtype=tf.float32)
+                dis_reward_ = tf.matmul(reward, gamma_)
+
+                ep_log_phi_a_ = tf.transpose(tf.concat(ep_log_phi_a, 0))
 
                 loss_ = tf.reduce_sum(ep_log_phi_a_ * dis_reward_)
                 total_episode_reward = tf.reduce_sum(ep_r)
-
                 ep_loss.append(loss_)
                 ep_reward.append(total_episode_reward)
 
@@ -140,9 +148,10 @@ def run_vpg(hparams):
                           step=1)
 
 
-for learning_rate in np.linspace(HP_LEARNING_RATE.domain.min_value,
-                      HP_LEARNING_RATE.domain.max_value, 5):
-    hparams = {
-        HP_LEARNING_RATE: learning_rate
-    }
-    run_vpg(hparams)
+#for learning_rate in np.linspace(HP_LEARNING_RATE.domain.min_value,
+#                      HP_LEARNING_RATE.domain.max_value, 5):
+learning_rate = 0.0001
+hparams = {
+    HP_LEARNING_RATE: learning_rate
+}
+run_vpg(hparams)
