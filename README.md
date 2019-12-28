@@ -1,5 +1,9 @@
 # Vanilla Policy Gradient
 
+![Imgur](https://imgur.com/HJih5QM.gif)
+
+
+
 The objective of this algorithm is to maximise the expected reward over a trajectory:
 $$
 J(\pi_{\theta}) = \mathbb{E}_{\tau \sim \pi_{\theta} }[R(\tau)]
@@ -11,7 +15,6 @@ $$
 $$
 
 ![Screenshot from 2019-11-10 12-59-56](https://i.imgur.com/xgT3jki.png)
-
 
 
 ![Screenshot from 2019-11-10 13-05-25](https://i.imgur.com/spyZE10.png)
@@ -39,6 +42,9 @@ The simplest form of Policy Gradient algorithm can be implemented in this manner
 	- *Apply gradient ascent for policy parameter*
 
 
+
+## Loss Function for different reward implementations
+![Imgur](https://imgur.com/qMAZAiM.png)
 
 
 
